@@ -2,6 +2,7 @@
 import os
 import random
 import time
+from pathlib import Path
 from dataclasses import dataclass
 
 import gymnasium as gym
@@ -153,6 +154,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     args = tyro.cli(Args)
     print(args, flush=True)
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_dir = Path("runs") / run_name
     if args.track:
         import wandb
 
@@ -165,7 +167,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             monitor_gym=True,
             save_code=True,
         )
-    writer = SummaryWriter(f"runs/{run_name}")
+    writer = SummaryWriter(str(run_dir))
     writer.add_text(
         "hyperparameters",
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
@@ -312,3 +314,11 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     envs.close()
     writer.close()
+
+    model_dir = run_dir / "models"
+    model_dir.mkdir(parents=True)
+    torch.save(actor.state_dict(), model_dir / "actor.pth")
+    torch.save(qf1.state_dict(), model_dir / "qf1.pth")
+    torch.save(qf1_target.state_dict(), model_dir / "qf1_target.pth")
+    torch.save(qf2.state_dict(), model_dir / "qf2.pth")
+    torch.save(qf2_target.state_dict(), model_dir / "qf2_target.pth")
