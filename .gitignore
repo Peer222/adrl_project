@@ -1,3 +1,7 @@
+.vscode
+slurm_outputs
+wandb
+
 slurm
 .aim
 runs
