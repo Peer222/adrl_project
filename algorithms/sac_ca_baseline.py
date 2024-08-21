@@ -36,6 +36,9 @@ class Args:
     capture_video: int = 50000
     """Frequency (global_step) of capturing videos. Set to 0 for no video capture  (check out `videos` folder)"""
 
+    load_models_from: Path | None = None
+    """load model parameters from model_dir"""
+
     # Algorithm specific arguments
     env_id: str = "AdroitHandDoor-v1"
     """the environment id of the task"""
@@ -195,6 +198,15 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     qf2_target = SoftQNetwork(envs).to(device)
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
+
+    # TODO check
+    if args.load_models_from:
+        actor.load_state_dict(torch.load(args.load_models_from / "actor.pth", map_location=device))
+        qf1.load_state_dict(torch.load(args.load_models_from / "qf1.pth", map_location=device))
+        qf1_target.load_state_dict(torch.load(args.load_models_from / "qf1_target.pth", map_location=device))
+        qf2.load_state_dict(torch.load(args.load_models_from / "qf2.pth", map_location=device))
+        qf2_target.load_state_dict(torch.load(args.load_models_from / "qf2_target.pth", map_location=device))
+
     q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.q_lr)
     actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.policy_lr)
 
