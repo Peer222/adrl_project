@@ -31,8 +31,8 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = "peer222-luh"
     """the entity (team) of wandb's project"""
-    capture_video: bool = False
-    """whether to capture videos of the agent performances (check out `videos` folder)"""
+    capture_video: int = 50000
+    """Frequency (global_step) of capturing videos. Set to 0 for no video capture  (check out `videos` folder)"""
 
     # Algorithm specific arguments
     env_id: str = "AdroitHandDoor-v1"
@@ -62,12 +62,16 @@ class Args:
     autotune: bool = True
     """automatic tuning of the entropy coefficient"""
 
+    max_episode_length: int = 200
+    """maximal length of an episode"""
 
-def make_env(env_id, seed, idx, capture_video, run_name):
+
+def make_env(env_id, seed, idx, capture_video, run_name, max_episode_length):
+    print(capture_video)
     def thunk():
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+            env = gym.make(env_id, render_mode="rgb_array", max_episode_steps=max_episode_length)
+            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}", step_trigger=lambda s: s % capture_video == 0)
         else:
             env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -157,7 +161,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             project=args.wandb_project_name,
             entity=args.wandb_entity,
             sync_tensorboard=True,
-            config=vars(args),
+            config=vars(args) | {"run_name": run_name},
             name=run_name,
             monitor_gym=True,
             save_code=True,
@@ -177,7 +181,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name)])
+    envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name, args.max_episode_length)])
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
     max_action = float(envs.single_action_space.high[0])
@@ -213,7 +217,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
-    for global_step in range(args.total_timesteps):
+    for global_step in range(args.total_timesteps + args.max_episode_length):
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
@@ -228,8 +232,8 @@ poetry run pip install "stable_baselines3==2.0.0a1"
         if "final_info" in infos:
             for info in infos["final_info"]:
                 print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step + 1)
+                writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step + 1)
                 break
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
@@ -294,7 +298,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
 
-            if global_step % 100 == 0:
+            if global_step == 0 or (global_step + 1) % 100 == 0:
                 writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
                 writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
