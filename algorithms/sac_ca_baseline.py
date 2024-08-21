@@ -2,6 +2,7 @@
 import os
 import random
 import time
+import datetime
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -71,7 +72,7 @@ def make_env(env_id, seed, idx, capture_video, run_name, max_episode_length):
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array", max_episode_steps=max_episode_length)
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}", step_trigger=lambda s: s % capture_video == 0)
+            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}", step_trigger=lambda s: s % capture_video == 0, video_length=max_episode_length * 3)
         else:
             env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -153,7 +154,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     args = tyro.cli(Args)
     print(args, flush=True)
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{datetime.datetime.now()}"
     run_dir = Path("runs") / run_name
     if args.track:
         import wandb
@@ -218,7 +219,9 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
-    for global_step in range(args.total_timesteps + args.max_episode_length):
+
+    # so that 3 full episodes are recorded at end of training
+    for global_step in range(args.total_timesteps + args.max_episode_length * 3):
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
