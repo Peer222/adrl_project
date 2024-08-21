@@ -67,7 +67,6 @@ class Args:
 
 
 def make_env(env_id, seed, idx, capture_video, run_name, max_episode_length):
-    print(capture_video)
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array", max_episode_steps=max_episode_length)
