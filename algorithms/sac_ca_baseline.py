@@ -29,6 +29,8 @@ class Args:
     """if toggled, cuda will be enabled by default"""
     track: bool = True
     """if toggled, this experiment will be tracked with Weights and Biases"""
+    track_frequency: int = 100
+    """After n steps add losses... to log"""
     wandb_project_name: str = "adrl_project"
     """the wandb's project name"""
     wandb_entity: str = "peer222-luh"
@@ -314,7 +316,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
 
-            if global_step == 0 or (global_step + 1) % 100 == 0:
+            if global_step == 0 or (global_step + 1) % args.track_frequency == 0:
                 writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
                 writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
