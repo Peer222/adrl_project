@@ -21,9 +21,7 @@ class ActionEncoder(nn.Module):
         self.activation_fn = activation_fn
 
 
-    def forward(self, action: torch.Tensor | np.ndarray) -> torch.Tensor:
-        if isinstance(action, np.ndarray):
-            action = torch.from_numpy(action)
+    def forward(self, action: torch.Tensor) -> torch.Tensor:
 
         for layer in self.layers:
             action = layer(action)
@@ -53,9 +51,7 @@ class ActionDecoder(nn.Module):
         self.final_activation_fn = nn.Tanh()
 
 
-    def forward(self, action: torch.Tensor | np.ndarray) -> torch.Tensor:
-        if isinstance(action, np.ndarray):
-            action = torch.from_numpy(action)
+    def forward(self, action: torch.Tensor) -> torch.Tensor:
 
         for i, layer in enumerate(self.layers):
             action = layer(action)

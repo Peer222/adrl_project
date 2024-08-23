@@ -56,5 +56,9 @@ class Args:
     """Loss that is used for comparing latent representations"""
     contrastive_loss_margin: float = 0
     """Margin used for loss computations. For cosine_embedding: [-1, 1] with default 0 (->0.5), For triplet_margin: default 1"""
+    contrastive_loss_factor : float = 1
+    """Factor that is multiplied to contrastive loss"""
     reconstruction_loss: Literal["mse"] = "mse"
     """Loss used for reconstruction"""
+    reconstruction_loss_factor: float = 1
+    """Factor that is multiplied to reconstruction loss"""
