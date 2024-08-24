@@ -68,7 +68,7 @@ def get_nearby_actions(episode: EpisodeData, action_index: int, window_size: int
             actions.append(np.zeros_like(episode.actions[action_index]))
         elif index != action_index:
             actions.append(episode.actions[index])
-    
+
     return np.stack(actions)
 
 
@@ -97,6 +97,10 @@ def create_input_batch(args: arguments.Args, dataset: minari.MinariDataset, epis
         random_actions_np = get_negative_actions(episodes)
     elif args.negative_example_source == "random":
         random_actions_np = create_random_actions(env.action_space, args.num_negative_examples)
+    elif args.negative_example_source == "combined":
+        episodes = dataset.sample_episodes(args.num_negative_examples // 2)
+        random_actions_np = get_negative_actions(episodes)
+        random_actions_np = np.concatenate([random_actions_np, create_random_actions(env.action_space, args.num_negative_examples // 2)])
     random_actions = torch.from_numpy(random_actions_np)
 
     return torch.cat([current_action, nearby_actions, random_actions]).to(device)
@@ -192,6 +196,9 @@ if __name__ == "__main__":
     elif args.optimizer == "sgd":
         optimizer = torch.optim.SGD(list(encoder.parameters()) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
 
+    if args.lr_scheduler == "one_cycle_lr":
+        lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr, total_steps=args.iterations)
+
     if args.contrastive_loss == "cosine_embedding":
         contrastive_loss_fn = nn.CosineEmbeddingLoss(margin=args.contrastive_loss_margin)
     elif args.contrastive_loss == "triplet_margin":
@@ -214,6 +221,9 @@ if __name__ == "__main__":
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        if args.lr_scheduler != "none":
+            lr_scheduler.step()
 
         if iter == 0 or (iter + 1) % args.track_frequency == 0:
             writer.add_scalar("losses/total_train", loss.item(), iter)

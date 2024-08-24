@@ -44,10 +44,12 @@ class Args:
     """number of subsequent actions (1/2 before and 1/2 after) that should be considered similar in a batch (has to be an odd number)"""
     num_negative_examples: int = 10
     """number of non-matching actions that should be considered dissimilar from current action"""
-    negative_example_source: Literal["random", "sampling"] = "sampling"
+    negative_example_source: Literal["random", "sampling", "combined"] = "sampling"
     """Source of negative examples: Sampling from dataset or random initialization"""
     lr: float = 0.0001
     """learning rate"""
+    lr_scheduler: Literal["one_cycle_lr", "none"] = "none"
+    """lr scheduler that is applied"""
     weight_decay: float = 0
     """weight decay"""
     optimizer: Literal["adam", "sgd"] = "adam"
