@@ -56,13 +56,14 @@ def get_nearby_actions(episode: EpisodeData, action_index: int, window_size: int
     Args:
         episode (EpisodeData): Episode that contains current action
         action_index (int): Index in episode of current action
-        window_size (int): Number of actions that are added (1/2 before and 1/2 after current action)
+        window_size (int): Number of actions that are added (1/2 before and 1/2 after current action. (odd number expected))
 
     Returns:
         np.ndarray: action sequence
     """
+    assert window_size % 2 == 1, "Odd number for window_size expected"
     actions = []
-    for index in range(action_index - window_size // 2, action_index + window_size // 2, 1):
+    for index in range(action_index - window_size // 2, action_index + window_size // 2 + 1, 1):
         if index < 0 or index >= len(episode.actions):
             actions.append(np.zeros_like(episode.actions[action_index]))
         elif index != action_index:
@@ -98,7 +99,7 @@ def create_input_batch(args: arguments.Args, dataset: minari.MinariDataset, epis
         random_actions_np = create_random_actions(env.action_space, args.num_negative_examples)
     random_actions = torch.from_numpy(random_actions_np)
 
-    return torch.stack([current_action, nearby_actions, random_actions]).to(device)
+    return torch.cat([current_action, nearby_actions, random_actions]).to(device)
 
 
 def compute_losses(args: arguments.Args, reconstruction_loss_fn: nn.Module, contrastive_loss_fn: nn.Module, input_batch: torch.Tensor, latent_batch: torch.Tensor, output_batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -122,11 +123,11 @@ def compute_losses(args: arguments.Args, reconstruction_loss_fn: nn.Module, cont
         target[-args.num_negative_examples:] = -1
 
         # compare current action to the others
-        cur_latent_action = latent_batch[0].expand(num_actions)
+        cur_latent_action = latent_batch[0].unsqueeze(0).repeat(num_actions, 1)
         contrastive_loss = contrastive_loss_fn(cur_latent_action, latent_batch[1:], target)
     elif args.contrastive_loss == "triplet_margin":
         # compare current action to the others
-        cur_latent_action = latent_batch[0].expand(args.num_negative_examples)
+        cur_latent_action = latent_batch[0].unsqueeze(0).repeat(args.num_negative_examples, 1)
         contrastive_loss = contrastive_loss_fn(cur_latent_action, latent_batch[1 : args.window_size], latent_batch[args.window_size:])
 
     reconstruction_loss = reconstruction_loss_fn(input_batch, output_batch)
@@ -238,11 +239,10 @@ if __name__ == "__main__":
                     val_contrastive_losses.append(contrastive_loss.item())
                     val_reconstruction_losses.append(reconstruction_loss.item())
             
+            print(f"Val loss after {iter} iterations: {np.mean(val_total_losses)}")
             writer.add_scalar("losses/total_val", np.mean(val_total_losses), iter)
             writer.add_scalar("losses/contrastive_val", np.mean(val_contrastive_losses), iter)
             writer.add_scalar("losses/reconstruction_val", np.mean(val_reconstruction_losses), iter)
-
-        break
 
     writer.close()
 

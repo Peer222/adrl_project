@@ -41,8 +41,8 @@ class Args:
     iterations: int = 100000
     """number of iterations/ parameter updates"""
     window_size: int = 11 # tuning required
-    """number of subsequent actions (1/2 before and 1/2 after) that should be considered similar in a batch"""
-    num_negative_examples: int = 11
+    """number of subsequent actions (1/2 before and 1/2 after) that should be considered similar in a batch (has to be an odd number)"""
+    num_negative_examples: int = 10
     """number of non-matching actions that should be considered dissimilar from current action"""
     negative_example_source: Literal["random", "sampling"] = "sampling"
     """Source of negative examples: Sampling from dataset or random initialization"""
