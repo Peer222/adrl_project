@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 class ActionEncoder(nn.Module):
-    def __init__(self, action_space: gym.Space, latent_features: int, num_layers: int = 3, activation_fn: nn.Module = nn.Tanh()) -> None:
+    def __init__(self, action_space: gym.Space, latent_features: int, num_layers: int = 3, activation_fn: nn.Module | str = nn.Tanh()) -> None:
         super().__init__()
 
         in_features = np.prod(action_space.shape)
@@ -18,7 +18,17 @@ class ActionEncoder(nn.Module):
             layers.append(nn.Linear(in_features=in_, out_features=out_))
         self.layers = nn.ModuleList(layers)
 
-        self.activation_fn = activation_fn
+        if isinstance(activation_fn, str):
+            if activation_fn == "relu":
+                self.activation_fn = nn.ReLU()
+            elif activation_fn == "sigmoid":
+                self.activation_fn = nn.Sigmoid()
+            elif activation_fn == "tanh":
+                self.activation_fn = nn.Tanh()
+            else:
+                raise ValueError(f"The identifier {activation_fn} is not supported for activation_fn.")
+        else:
+            self.activation_fn = activation_fn
 
 
     def forward(self, action: torch.Tensor) -> torch.Tensor:
@@ -31,7 +41,7 @@ class ActionEncoder(nn.Module):
 
 
 class ActionDecoder(nn.Module):
-    def __init__(self, action_space: gym.Space, latent_features: int, num_layers: int = 3, activation_fn: nn.Module = nn.Tanh()) -> None:
+    def __init__(self, action_space: gym.Space, latent_features: int, num_layers: int = 3, activation_fn: nn.Module | str = nn.Tanh()) -> None:
         super().__init__()
 
         in_features = latent_features
@@ -45,7 +55,17 @@ class ActionDecoder(nn.Module):
             layers.append(nn.Linear(in_features=in_, out_features=out_))
         self.layers = nn.ModuleList(layers)
 
-        self.activation_fn = activation_fn
+        if isinstance(activation_fn, str):
+            if activation_fn == "relu":
+                self.activation_fn = nn.ReLU()
+            elif activation_fn == "sigmoid":
+                self.activation_fn = nn.Sigmoid()
+            elif activation_fn == "tanh":
+                self.activation_fn = nn.Tanh()
+            else:
+                raise ValueError(f"The identifier {activation_fn} is not supported for activation_fn.")
+        else:
+            self.activation_fn = activation_fn
 
         # Adroit action space normalizes all actions between -1 and 1
         self.final_activation_fn = nn.Tanh()

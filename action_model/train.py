@@ -6,6 +6,7 @@ import minari.dataset.episode_data
 import tyro
 import datetime
 import time
+import json
 
 import torch
 import torch.nn as nn
@@ -145,7 +146,10 @@ if __name__ == "__main__":
     args = tyro.cli(arguments.Args)
 
     print(args, flush=True)
-    run_name = f"{args.env_id}_{args.exp_name}_s{args.seed}_{str(datetime.datetime.now()).replace(' ', '_')}"
+    if not args.exp_name:
+        run_name = f"{args.env_id}_action_model_s{args.seed}_{datetime.datetime.now().strftime('%Y-%m-%D_%M-%S')}"
+    else:
+        run_name = args.exp_name
     run_dir = Path("action_runs") / run_name
 
     if args.track:
@@ -156,6 +160,7 @@ if __name__ == "__main__":
             sync_tensorboard=True,
             config=vars(args) | {"run_name": run_name},
             name=run_name,
+            id=run_name,
             monitor_gym=True,
             save_code=True,
         )
@@ -180,15 +185,9 @@ if __name__ == "__main__":
     if args.env_id != env.spec.id:
         warnings.warn(f"Environment id passed as argument does not match environment id of dataset: {args.env_id} VS {env.spec.id}")
 
-    if args.activation_fn == "relu":
-        activation_fn = nn.ReLU()
-    elif args.activation_fn == "sigmoid":
-        activation_fn = nn.Sigmoid()
-    elif args.activation_fn == "tanh":
-        activation_fn = nn.Tanh()
 
-    encoder = model.ActionEncoder(env.action_space, args.latent_features, args.num_layers, activation_fn).to(device)
-    decoder = model.ActionDecoder(env.action_space, args.latent_features, args.num_layers, activation_fn).to(device)
+    encoder = model.ActionEncoder(env.action_space, args.latent_features, args.num_layers, args.activation_fn).to(device)
+    decoder = model.ActionDecoder(env.action_space, args.latent_features, args.num_layers, args.activation_fn).to(device)
 
 
     if args.optimizer == "adam":
@@ -258,6 +257,10 @@ if __name__ == "__main__":
 
     model_dir = run_dir / "models"
     model_dir.mkdir(parents=True)
+
     torch.save(encoder.state_dict(), model_dir / "encoder.pth")
     torch.save(decoder.state_dict(), model_dir / "decoder.pth")
     torch.save(optimizer.state_dict(), model_dir / "optimizer.pth")
+
+    with open(model_dir / "config.json", "w") as f:
+        json.dump(vars(args), f)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Args:
-    exp_name: str = "action_model"
+    exp_name: str = None
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
