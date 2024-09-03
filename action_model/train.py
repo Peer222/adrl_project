@@ -145,7 +145,7 @@ if __name__ == "__main__":
     args = tyro.cli(arguments.Args)
 
     print(args, flush=True)
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{datetime.datetime.now()}"
+    run_name = f"{args.env_id}_{args.exp_name}_s{args.seed}_{str(datetime.datetime.now()).replace(' ', '_')}"
     run_dir = Path("action_runs") / run_name
 
     if args.track:
