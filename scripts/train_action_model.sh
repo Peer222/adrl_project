@@ -21,4 +21,4 @@ conda activate /bigwork/nhwpduep/.conda/envs/adrl_project
 export WANDB_MODE=offline
 
 # change seed
-python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 0 --contrastive_loss triplet_margin --contrastive_loss_margin 0.1 --negative_example_source combined --latent_features 29
+python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 0 --contrastive_loss triplet_margin --contrastive_loss_margin 0.1 --negative_example_source combined --latent_features 28
