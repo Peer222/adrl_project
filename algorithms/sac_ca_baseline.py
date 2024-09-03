@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 @dataclass
 class Args:
-    exp_name: str = os.path.basename(__file__)[: -len(".py")]
+    exp_name: str = None
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
@@ -159,7 +159,10 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     args = tyro.cli(Args)
     print(args, flush=True)
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{datetime.datetime.now()}"
+    if not args.exp_name:
+        run_name = f"{args.env_id}_{os.path.basename(__file__)[: -len('.py')]}_s{args.seed}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    else:
+        run_name = args.exp_name
     run_dir = Path("runs") / run_name
     if args.track:
         import wandb
@@ -170,6 +173,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             sync_tensorboard=True,
             config=vars(args) | {"run_name": run_name},
             name=run_name,
+            id=run_name,
             monitor_gym=True,
             save_code=True,
         )
