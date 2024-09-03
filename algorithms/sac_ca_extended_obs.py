@@ -1,10 +1,16 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/sac/#sac_continuous_actionpy
+import sys
+sys.path.append('./')
+
 import os
+from typing import Literal
+from pathlib import Path
+from dataclasses import dataclass
+import json
 import random
 import time
 import datetime
-from pathlib import Path
-from dataclasses import dataclass
+import pytz
 
 import gymnasium as gym
 import numpy as np
@@ -13,13 +19,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
-from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
+
+from utils import ReplayBuffer
+from action_model import model as action_model
 
 
 @dataclass
 class Args:
-    exp_name: str = os.path.basename(__file__)[: -len(".py")]
+    action_model_dir: Path
+    """Directory in which the trained action autoencoder is saved (encoder.pth, decoder.pth)"""
+    observation_input: Literal["concat_actions", "replace_actions"] = "concat_actions"
+    """Wether the action embedding of the previous action should be concatenated to the observation or should replace action related observation parameters"""
+
+    exp_name: str = None
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
@@ -72,9 +85,6 @@ class Args:
     max_episode_length: int = 200
     """maximal length of an episode"""
 
-    action_model_dir: Path
-    """Directory in which the trained action autoencoder is saved (encoder.pth, decoder.pth)"""
-
 
 def make_env(env_id, seed, idx, capture_video, run_name, max_episode_length):
     def thunk():
@@ -92,9 +102,15 @@ def make_env(env_id, seed, idx, capture_video, run_name, max_episode_length):
 
 # ALGO LOGIC: initialize agent here:
 class SoftQNetwork(nn.Module):
-    def __init__(self, env):
+    def __init__(self, observation_size: int, action_size: int, action_embedding_size: int, mode: Literal["concat_actions", "replace_actions", "obs_only"]):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 256)
+        if mode == "concat_actions":
+            self.fc1 = nn.Linear(observation_size + action_embedding_size + action_size, 256)
+        elif mode == "replace_actions":
+            raise NotImplementedError("Replacing observation parameters by action embeddings is currently not supported. Use 'concat' instead")
+        elif mode =="obs_only":
+            self.fc1 == nn.Linear(observation_size, 256)
+        
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 1)
 
@@ -111,18 +127,26 @@ LOG_STD_MIN = -5
 
 
 class Actor(nn.Module):
-    def __init__(self, env):
+    def __init__(self, observation_size: int, action_size: int, action_embedding_size: int, mode: Literal["concat_actions", "replace_actions", "obs_only"], highest_action_value: float, lowest_action_value: float):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 256)
+        if mode == "concat_actions":
+            self.fc1 = nn.Linear(observation_size + action_embedding_size, 256)
+        elif mode == "replace_actions":
+            raise NotImplementedError("Replacing observation parameters by action embeddings is currently not supported. Use 'concat' instead")
+        elif mode == "obs_only":
+            self.fc1 = nn.Linear(observation_size, 256)
+        self.mode = mode
+        
+        
         self.fc2 = nn.Linear(256, 256)
-        self.fc_mean = nn.Linear(256, np.prod(env.single_action_space.shape))
-        self.fc_logstd = nn.Linear(256, np.prod(env.single_action_space.shape))
+        self.fc_mean = nn.Linear(256, action_size)
+        self.fc_logstd = nn.Linear(256, action_size)
         # action rescaling
         self.register_buffer(
-            "action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
+            "action_scale", torch.tensor((highest_action_value - lowest_action_value) / 2.0, dtype=torch.float32)
         )
         self.register_buffer(
-            "action_bias", torch.tensor((env.action_space.high + env.action_space.low) / 2.0, dtype=torch.float32)
+            "action_bias", torch.tensor((highest_action_value + lowest_action_value) / 2.0, dtype=torch.float32)
         )
 
     def forward(self, x):
@@ -162,7 +186,10 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     args = tyro.cli(Args)
     print(args, flush=True)
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{datetime.datetime.now()}"
+    if not args.exp_name:
+        run_name = f"{args.env_id}_{os.path.basename(__file__)[: -len('.py')]}_s{args.seed}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    else:
+        run_name = args.exp_name
     run_dir = Path("runs") / run_name
     if args.track:
         import wandb
@@ -173,6 +200,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             sync_tensorboard=True,
             config=vars(args) | {"run_name": run_name},
             name=run_name,
+            id=run_name,
             monitor_gym=True,
             save_code=True,
         )
@@ -194,14 +222,20 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name, args.max_episode_length)])
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    max_action = float(envs.single_action_space.high[0])
+    with open(args.action_model_dir / "config.json", "r") as config_file:
+        action_model_config = json.load(config_file)
+    action_encoder = action_model.ActionEncoder(envs.single_action_space, action_model_config["latent_features"], action_model_config["num_layers"], action_model_config["activation_fn"]).to(device)
+    action_encoder.load_state_dict(torch.load(args.action_model_dir / "encoder.pth"))
+    action_encoder.eval()
 
+    obs_size = np.array(envs.single_observation_space.shape).prod()
+    action_size = np.prod(envs.single_action_space.shape)
 
-    actor = Actor(envs).to(device)
-    qf1 = SoftQNetwork(envs).to(device)
-    qf2 = SoftQNetwork(envs).to(device)
-    qf1_target = SoftQNetwork(envs).to(device)
-    qf2_target = SoftQNetwork(envs).to(device)
+    actor = Actor(obs_size, action_size, action_model_config["latent_features"], args.observation_input, envs.action_space.high, envs.action_space.low).to(device)
+    qf1 = SoftQNetwork(obs_size, action_size, action_model_config["latent_features"], args.observation_input).to(device)
+    qf2 = SoftQNetwork(obs_size, action_size, action_model_config["latent_features"], args.observation_input).to(device)
+    qf1_target = SoftQNetwork(obs_size, action_size, action_model_config["latent_features"], args.observation_input).to(device)
+    qf2_target = SoftQNetwork(obs_size, action_size, action_model_config["latent_features"], args.observation_input).to(device)
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
 
@@ -230,6 +264,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
         args.buffer_size,
         envs.single_observation_space,
         envs.single_action_space,
+        action_model_config["latent_features"],
         device,
         handle_timeout_termination=False,
     )
@@ -237,18 +272,24 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
+    prev_latent_actions = np.zeros((envs.num_envs, action_model_config["latent_features"]))
 
     # so that 3 full episodes are recorded at end of training
     for global_step in range(args.total_timesteps + args.max_episode_length * 3):
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions_np = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = torch.from_numpy(actions_np).to(device)
         else:
-            actions, _, _ = actor.get_action(torch.Tensor(obs).to(device))
-            actions = actions.detach().cpu().numpy()
+            if args.observation_input == "concat_actions":
+                extended_obs = torch.Tensor(np.concatenate([obs, prev_latent_actions], 1)).to(device)
+                actions, _, _ = actor.get_action(extended_obs)
+            elif args.observation_input == "replace_actions":
+                raise NotImplementedError("replace_actions is not implemented, Use 'concat_actions' instead")
+            actions_np = actions.detach().cpu().numpy()
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+        next_obs, rewards, terminations, truncations, infos = envs.step(actions_np)
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         if "final_info" in infos:
@@ -258,28 +299,40 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step + 1)
                 break
 
-        # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
+        latent_actions = action_encoder(actions).detach().cpu().numpy()
+
+        # TRY NOT TO MODIFY: save data to replay buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
         for idx, trunc in enumerate(truncations):
             if trunc:
                 real_next_obs[idx] = infos["final_observation"][idx]
-        rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+        rb.add(obs, real_next_obs, actions_np, rewards, terminations, infos, latent_actions, prev_latent_actions)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
+
+        # new episode is started so starting with zero action
+        prev_latent_actions = latent_actions
+        for idx, trunc in enumerate(truncations):
+            if trunc:
+                prev_latent_actions[idx] = 0
 
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             data = rb.sample(args.batch_size)
             with torch.no_grad():
-                next_state_actions, next_state_log_pi, _ = actor.get_action(data.next_observations)
-                qf1_next_target = qf1_target(data.next_observations, next_state_actions)
-                qf2_next_target = qf2_target(data.next_observations, next_state_actions)
+                if args.observation_input == "concat_actions":
+                    extended_next_obs = torch.cat([data.next_observations, data.latent_actions], 1)
+                next_state_actions, next_state_log_pi, _ = actor.get_action(extended_next_obs)
+                qf1_next_target = qf1_target(extended_next_obs, next_state_actions)
+                qf2_next_target = qf2_target(extended_next_obs, next_state_actions)
                 min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - alpha * next_state_log_pi
                 next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (min_qf_next_target).view(-1)
 
-            qf1_a_values = qf1(data.observations, data.actions).view(-1)
-            qf2_a_values = qf2(data.observations, data.actions).view(-1)
+            if args.observation_input == "concat_actions":
+                extended_obs = torch.cat([data.observations, data.previous_latent_actions], 1)
+            qf1_a_values = qf1(extended_obs, data.actions).view(-1)
+            qf2_a_values = qf2(extended_obs, data.actions).view(-1)
             qf1_loss = F.mse_loss(qf1_a_values, next_q_value)
             qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
             qf_loss = qf1_loss + qf2_loss
@@ -293,9 +346,9 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 for _ in range(
                     args.policy_frequency
                 ):  # compensate for the delay by doing 'actor_update_interval' instead of 1
-                    pi, log_pi, _ = actor.get_action(data.observations)
-                    qf1_pi = qf1(data.observations, pi)
-                    qf2_pi = qf2(data.observations, pi)
+                    pi, log_pi, _ = actor.get_action(extended_obs)
+                    qf1_pi = qf1(extended_obs, pi)
+                    qf2_pi = qf2(extended_obs, pi)
                     min_qf_pi = torch.min(qf1_pi, qf2_pi)
                     actor_loss = ((alpha * log_pi) - min_qf_pi).mean()
 
@@ -305,7 +358,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
                     if args.autotune:
                         with torch.no_grad():
-                            _, log_pi, _ = actor.get_action(data.observations)
+                            _, log_pi, _ = actor.get_action(extended_obs)
                         alpha_loss = (-log_alpha.exp() * (log_pi + target_entropy)).mean()
 
                         a_optimizer.zero_grad()
