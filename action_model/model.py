@@ -1,11 +1,12 @@
 import gymnasium as gym
 
+import warnings
 import torch
 import torch.nn as nn
 import numpy as np
 
 class ActionEncoder(nn.Module):
-    def __init__(self, action_space: gym.Space, latent_features: int, num_layers: int = 3, activation_fn: nn.Module | str = nn.Tanh()) -> None:
+    def __init__(self, action_space: gym.Space, latent_features: int, num_layers: int = 3, activation_fn: str = "tanh") -> None:
         super().__init__()
 
         in_features = np.prod(action_space.shape)
@@ -21,15 +22,21 @@ class ActionEncoder(nn.Module):
         if isinstance(activation_fn, str):
             if activation_fn == "relu":
                 self.activation_fn = nn.ReLU()
+                self.lowest_action = 0.0
+                self.highest_action = 1.0
+                warnings.warn("Highest value for ReLU activation for latent representation would be inf. This is nnot reasonable! Currently it is set to 1.0 for action normalization in policy!!!")
             elif activation_fn == "sigmoid":
                 self.activation_fn = nn.Sigmoid()
+                self.lowest_action = 0.0
+                self.highest_action = 1.0
             elif activation_fn == "tanh":
                 self.activation_fn = nn.Tanh()
+                self.lowest_action = -1.0
+                self.highest_action = 1.0
             else:
                 raise ValueError(f"The identifier {activation_fn} is not supported for activation_fn.")
         else:
-            self.activation_fn = activation_fn
-
+            raise NotImplementedError("Only string identifiers are allowed for activation_fn")
 
     def forward(self, action: torch.Tensor) -> torch.Tensor:
 
@@ -46,7 +53,6 @@ class ActionDecoder(nn.Module):
 
         in_features = latent_features
         out_features = np.prod(action_space.shape)
-
 
         layers = []
         for i in range(num_layers):
@@ -69,7 +75,6 @@ class ActionDecoder(nn.Module):
 
         # Adroit action space normalizes all actions between -1 and 1
         self.final_activation_fn = nn.Tanh()
-
 
     def forward(self, action: torch.Tensor) -> torch.Tensor:
 
