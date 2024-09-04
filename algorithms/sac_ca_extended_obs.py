@@ -1,4 +1,3 @@
-# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/sac/#sac_continuous_actionpy
 import sys
 sys.path.append('./')
 
@@ -107,8 +106,8 @@ class SoftQNetwork(nn.Module):
             self.fc1 = nn.Linear(observation_size + action_embedding_size + action_size, 256)
         elif mode == "replace_actions":
             raise NotImplementedError("Replacing observation parameters by action embeddings is currently not supported. Use 'concat' instead")
-        elif mode =="obs_only":
-            self.fc1 == nn.Linear(observation_size, 256)
+        elif mode == "obs_only":
+            self.fc1 = nn.Linear(observation_size, 256)
         
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 1)
@@ -224,7 +223,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     with open(args.action_model_dir / "config.json", "r") as config_file:
         action_model_config = json.load(config_file)
     action_encoder = action_model.ActionEncoder(envs.single_action_space, action_model_config["latent_features"], action_model_config["num_layers"], action_model_config["activation_fn"]).to(device)
-    action_encoder.load_state_dict(torch.load(args.action_model_dir / "encoder.pth"))
+    action_encoder.load_state_dict(torch.load(args.action_model_dir / "encoder.pth", weights_only=True))
     action_encoder.eval()
 
     obs_size = np.array(envs.single_observation_space.shape).prod()
@@ -298,7 +297,8 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step + 1)
                 break
 
-        latent_actions = action_encoder(actions).detach().cpu().numpy()
+        with torch.no_grad():
+            latent_actions = action_encoder(actions).detach().cpu().numpy()
 
         # TRY NOT TO MODIFY: save data to replay buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
