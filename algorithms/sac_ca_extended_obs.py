@@ -10,7 +10,6 @@ import json
 import random
 import time
 import datetime
-import pytz
 
 import gymnasium as gym
 import numpy as np
@@ -277,15 +276,15 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     # so that 3 full episodes are recorded at end of training
     for global_step in range(args.total_timesteps + args.max_episode_length * 3):
         # ALGO LOGIC: put action logic here
-        if global_step < args.learning_starts:
+        if False and global_step < args.learning_starts: # random sampling cannot be combined with previous action embeddings in a reasonable way
             actions_np = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
-            actions = torch.from_numpy(actions_np).to(device)
+            actions = torch.Tensor(actions_np).to(device)
         else:
             if args.observation_input == "concat_actions":
                 extended_obs = torch.Tensor(np.concatenate([obs, prev_latent_actions], 1)).to(device)
-                actions, _, _ = actor.get_action(extended_obs)
             elif args.observation_input == "replace_actions":
                 raise NotImplementedError("replace_actions is not implemented, Use 'concat_actions' instead")
+            actions, _, _ = actor.get_action(extended_obs)
             actions_np = actions.detach().cpu().numpy()
 
         # TRY NOT TO MODIFY: execute the game and log data.
@@ -311,10 +310,10 @@ poetry run pip install "stable_baselines3==2.0.0a1"
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
-        # new episode is started so starting with zero action
         prev_latent_actions = latent_actions
         for idx, trunc in enumerate(truncations):
             if trunc:
+                # new episode is started so starting with zero action as previous action
                 prev_latent_actions[idx] = 0
 
         # ALGO LOGIC: training.
