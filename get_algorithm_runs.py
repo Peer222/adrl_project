@@ -44,6 +44,7 @@ if __name__ == "__main__":
     alphas = []
     actor_losses = []
     alpha_losses = []
+    qf_losses = []
     qf1_losses = []
     qf2_losses = []
     qf1_values = []
@@ -61,6 +62,7 @@ if __name__ == "__main__":
         alphas.append(parse_metric_df(run_config, run_history, metric="losses/alpha", metric_name="Alpha"))
         actor_losses.append(parse_metric_df(run_config, run_history, metric="losses/actor_loss", metric_name="Actor Loss"))
         alpha_losses.append(parse_metric_df(run_config, run_history, metric="losses/alpha_loss", metric_name="Alpha Loss"))
+        qf_losses.append(parse_metric_df(run_config, run_history, metric="losses/qf_loss", metric_name="Qf Loss"))
         qf1_losses.append(parse_metric_df(run_config, run_history, metric="losses/qf1_loss", metric_name="Qf1 Loss"))
         qf2_losses.append(parse_metric_df(run_config, run_history, metric="losses/qf2_loss", metric_name="Qf2 Loss"))
         qf1_values.append(parse_metric_df(run_config, run_history, metric="losses/qf1_values", metric_name="Qf1 Values"))
@@ -70,6 +72,7 @@ if __name__ == "__main__":
     pd.concat(alphas).to_csv(args.result_dir / "alphas.csv")
     pd.concat(actor_losses).to_csv(args.result_dir / "actor_losses.csv")
     pd.concat(alpha_losses).to_csv(args.result_dir / "alpha_losses.csv")
+    pd.concat(qf_losses).to_csv(args.result_dir / "qf_losses.csv")
     pd.concat(qf1_losses).to_csv(args.result_dir / "qf1_losses.csv")
     pd.concat(qf2_losses).to_csv(args.result_dir / "qf2_losses.csv")
     pd.concat(qf1_values).to_csv(args.result_dir / "qf1_values.csv")
