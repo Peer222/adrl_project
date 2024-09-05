@@ -50,30 +50,34 @@ def get_negative_actions(episodes: Iterable[EpisodeData]) -> np.ndarray:
     return np.stack(actions)
 
 
-def get_nearby_actions(episode: EpisodeData, action_index: int, window_size: int) -> np.ndarray:
+def get_nearby_actions(args: arguments.Args, episode: EpisodeData, action_index: int) -> np.ndarray:
     """Gets actions surrounding current action
     If window is out of bounds zero actions are appended
 
     Args:
+        args (arguments.Args): arguments
         episode (EpisodeData): Episode that contains current action
         action_index (int): Index in episode of current action
-        window_size (int): Number of actions that are added (1/2 before and 1/2 after current action. (odd number expected))
 
     Returns:
         np.ndarray: action sequence
     """
-    assert window_size % 2 == 1, "Odd number for window_size expected"
+    assert args.window_size % 2 == 1, "Odd number for window_size expected"
     actions = []
-    for index in range(action_index - window_size // 2, action_index + window_size // 2 + 1, 1):
+    # TODO include position encoding (how to handle negative examples)
+    for index in range(action_index - args.window_size // 2, action_index + args.window_size // 2 + 1, 1):
         if index < 0 or index >= len(episode.actions):
-            actions.append(np.zeros_like(episode.actions[action_index]))
+            if args.pad_actions == "pad":
+                actions.append(np.zeros_like(episode.actions[action_index]))
+            elif args.pad_actions == "pad_starting_action" and index == -1:
+                actions.append(np.zeros_like(episode.actions[action_index]))
         elif index != action_index:
             actions.append(episode.actions[index])
 
     return np.stack(actions)
 
 
-def create_input_batch(args: arguments.Args, dataset: minari.MinariDataset, episode: EpisodeData | None = None) -> torch.Tensor:
+def create_input_batch(args: arguments.Args, dataset: minari.MinariDataset, episode: EpisodeData | None = None) -> tuple[torch.Tensor, int]:
     """Creates input batch for encoder according to args
 
     Args:
@@ -82,7 +86,7 @@ def create_input_batch(args: arguments.Args, dataset: minari.MinariDataset, epis
         episode (EpisodeData | None): episode to sample current action... from (used for validation)
 
     Returns:
-        torch.Tensor: input batch
+        tuple[torch.Tensor, int]: input batch, number of nearby actions (might be lower if no pad)
     """
     if not episode:
         episode: EpisodeData = dataset.sample_episodes(1)[0]
@@ -91,23 +95,28 @@ def create_input_batch(args: arguments.Args, dataset: minari.MinariDataset, epis
     action_index = np.random.randint(0, len(episode.actions))
     current_action = torch.from_numpy(episode.actions[action_index]).unsqueeze(0)
 
-    nearby_actions = torch.from_numpy(get_nearby_actions(episode, action_index, args.window_size))
+    nearby_actions = torch.from_numpy(get_nearby_actions(args, episode, action_index))
+
+    num_negative_samples = args.num_negative_examples
+    if args.contrastive_loss == "triplet_margin":
+        # triplet loss needs same amount of positive and negative examples (handles no padded_actions)
+        num_negative_samples = len(nearby_actions)
 
     if args.negative_example_source == "sampling":
-        episodes = dataset.sample_episodes(args.num_negative_examples)
+        episodes = dataset.sample_episodes(num_negative_samples)
         random_actions_np = get_negative_actions(episodes)
     elif args.negative_example_source == "random":
-        random_actions_np = create_random_actions(env.action_space, args.num_negative_examples)
+        random_actions_np = create_random_actions(env.action_space, num_negative_samples)
     elif args.negative_example_source == "combined":
-        episodes = dataset.sample_episodes(args.num_negative_examples // 2)
+        episodes = dataset.sample_episodes(int(np.ceil(num_negative_samples / 2)))
         random_actions_np = get_negative_actions(episodes)
-        random_actions_np = np.concatenate([random_actions_np, create_random_actions(env.action_space, args.num_negative_examples // 2)])
+        random_actions_np = np.concatenate([random_actions_np, create_random_actions(env.action_space, num_negative_samples // 2)])
     random_actions = torch.from_numpy(random_actions_np)
 
-    return torch.cat([current_action, nearby_actions, random_actions]).to(device)
+    return torch.cat([current_action, nearby_actions, random_actions]), len(nearby_actions)
 
 
-def compute_losses(args: arguments.Args, reconstruction_loss_fn: nn.Module, contrastive_loss_fn: nn.Module, input_batch: torch.Tensor, latent_batch: torch.Tensor, output_batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def compute_losses(args: arguments.Args, reconstruction_loss_fn: nn.Module, contrastive_loss_fn: nn.Module, input_batch: torch.Tensor, latent_batch: torch.Tensor, output_batch: torch.Tensor, num_positive_actions: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes losses for given inputs
 
     Args:
@@ -117,13 +126,14 @@ def compute_losses(args: arguments.Args, reconstruction_loss_fn: nn.Module, cont
         input_batch (torch.Tensor): Inputs for encoder  [current_action, nearby_actions, random_actions]
         latent_batch (torch.Tensor): Inputs for decoder/ Outputs of encoder  [current_action, nearby_actions, random_actions]
         output_batch (torch.Tensor): Outputs of decoder  [current_action, nearby_actions, random_actions]
+        num_positive_actions (int): Number of positive/ nearby actions in batch
 
     Returns:
         tuple[torch.Tensor, torch.Tensor, torch.Tensor]: total loss, contrastive loss, reconstruction loss
     """
     if args.contrastive_loss == "cosine_embedding":
         # target 1 for nearby_actions and -1 for random_actions
-        num_actions = args.window_size - 1 + args.num_negative_examples
+        num_actions = num_positive_actions + args.num_negative_examples
         target = torch.ones(num_actions).to(device)
         target[-args.num_negative_examples:] = -1
 
@@ -131,9 +141,9 @@ def compute_losses(args: arguments.Args, reconstruction_loss_fn: nn.Module, cont
         cur_latent_action = latent_batch[0].unsqueeze(0).repeat(num_actions, 1)
         contrastive_loss = contrastive_loss_fn(cur_latent_action, latent_batch[1:], target)
     elif args.contrastive_loss == "triplet_margin":
-        # compare current action to the others
-        cur_latent_action = latent_batch[0].unsqueeze(0).repeat(args.num_negative_examples, 1)
-        contrastive_loss = contrastive_loss_fn(cur_latent_action, latent_batch[1 : args.window_size], latent_batch[args.window_size:])
+        # compare current action to the positives and negatives (use only as many negative actions as positive actions are present)
+        cur_latent_action = latent_batch[0].unsqueeze(0).repeat(num_positive_actions, 1)
+        contrastive_loss = contrastive_loss_fn(cur_latent_action, latent_batch[1 : num_positive_actions + 1], latent_batch[num_positive_actions + 1: 2 * num_positive_actions + 1])
 
     reconstruction_loss = reconstruction_loss_fn(input_batch, output_batch)
 
@@ -147,7 +157,7 @@ if __name__ == "__main__":
 
     print(args, flush=True)
     if not args.exp_name:
-        run_name = f"{args.env_id}_action_model_s{args.seed}_{datetime.datetime.now().strftime('%Y-%m-%D_%M-%S')}"
+        run_name = f"{args.env_id}_action_model_s{args.seed}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     else:
         run_name = args.exp_name
     run_dir = Path("action_runs") / run_name
@@ -211,11 +221,12 @@ if __name__ == "__main__":
         encoder.train()
         decoder.train()
 
-        input_batch = create_input_batch(args, train_dataset).to(device)
+        input_batch, num_nearby_actions = create_input_batch(args, train_dataset)
+        input_batch = input_batch.to(device)
         latent_batch: torch.Tensor = encoder(input_batch)
         output_batch: torch.Tensor = decoder(latent_batch)
 
-        loss, contrastive_loss, reconstruction_loss = compute_losses(args, reconstruction_loss_fn, contrastive_loss_fn, input_batch, latent_batch, output_batch)
+        loss, contrastive_loss, reconstruction_loss = compute_losses(args, reconstruction_loss_fn, contrastive_loss_fn, input_batch, latent_batch, output_batch, num_nearby_actions)
 
         optimizer.zero_grad()
         loss.backward()
@@ -239,11 +250,12 @@ if __name__ == "__main__":
             decoder.eval()
             with torch.no_grad():
                 for episode in val_dataset:
-                    input_batch = create_input_batch(args, val_dataset, episode).to(device)
+                    input_batch, num_nearby_actions = create_input_batch(args, val_dataset, episode)
+                    input_batch = input_batch.to(device)
                     latent_batch: torch.Tensor = encoder(input_batch)
                     output_batch: torch.Tensor = decoder(latent_batch)
 
-                    loss, contrastive_loss, reconstruction_loss = compute_losses(args, reconstruction_loss_fn, contrastive_loss_fn, input_batch, latent_batch, output_batch)
+                    loss, contrastive_loss, reconstruction_loss = compute_losses(args, reconstruction_loss_fn, contrastive_loss_fn, input_batch, latent_batch, output_batch, num_nearby_actions)
                     val_total_losses.append(loss.item())
                     val_contrastive_losses.append(contrastive_loss.item())
                     val_reconstruction_losses.append(reconstruction_loss.item())

@@ -38,13 +38,15 @@ class Args:
     activation_fn: Literal["relu", "tanh", "sigmoid"] = "tanh"
     """latent activation functions that are used in encoder and decoder (final activation of decoder is always tanh to map to action space)"""
 
-    iterations: int = 100000
+    iterations: int = 120000
     """number of iterations/ parameter updates"""
     window_size: int = 11 # tuning required
     """number of subsequent actions (1/2 before and 1/2 after) that should be considered similar in a batch (has to be an odd number)"""
+    pad_actions: Literal["no_pad", "pad", "pad_starting_action"] =  "pad_starting_action"
+    """If "pad" zero actions are added if the current action is at the start or end of an episode. If "no_pad" they are omitted. If "pad_starting_action" only the action at -1 is padded"""
     num_negative_examples: int = 10
     """number of non-matching actions that should be considered dissimilar from current action"""
-    negative_example_source: Literal["random", "sampling", "combined"] = "sampling"
+    negative_example_source: Literal["random", "sampling", "combined"] = "combined"
     """Source of negative examples: Sampling from dataset or random initialization"""
     lr: float = 0.0001
     """learning rate"""
@@ -54,9 +56,9 @@ class Args:
     """weight decay"""
     optimizer: Literal["adam", "sgd"] = "adam"
     """optimizer for training"""
-    contrastive_loss: Literal["cosine_embedding", "triplet_margin"] = "cosine_embedding"
+    contrastive_loss: Literal["cosine_embedding", "triplet_margin"] = "triplet_margin"
     """Loss that is used for comparing latent representations"""
-    contrastive_loss_margin: float = 0
+    contrastive_loss_margin: float = 0.1
     """Margin used for loss computations. For cosine_embedding: [-1, 1] with default 0 (->0.5), For triplet_margin: default 1"""
     contrastive_loss_factor : float = 1
     """Factor that is multiplied to contrastive loss"""
