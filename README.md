@@ -14,7 +14,7 @@ Here you can find the code of my final project for the lecture <a href="https://
 
 <div align="center">
     <h4 align="center">Visualization of the Approach</h4>
-    <img src="model_structure.png" alt="model structure" width="60%"/>
+    <img src="complete_model.png" alt="model structure" width="50%"/>
 </div>
 
 ### Built With
