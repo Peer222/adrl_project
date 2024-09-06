@@ -13,5 +13,5 @@ do
         file_paths="${file_paths} experiment_data/${1}/${metric}.csv"
         run_labels="${run_labels} ${2}"
     done
-    python multi_plots.py --result_dir "plots/" --file_paths $file_paths --run_labels $run_labels
+    python utils/multi_plots.py --result_dir "plots/" --file_paths $file_paths --run_labels $run_labels
 done
