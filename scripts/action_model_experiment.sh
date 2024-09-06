@@ -17,9 +17,9 @@ conda activate adrl_project
 
 if [ -z $1 ] || [ -z $2 ] || [ -z $3 ];
 then 
-    echo "No parameter passed. Make sure to log in to your wandb account with 'wandb login' and pass the following arguments:\n
-    1. your wandb entity,\n
-    2. your created wandb project,\n
+    echo "No parameter passed. Make sure to log in to your wandb account with 'wandb login' and pass the following arguments:
+    1. your wandb entity,
+    2. your created wandb project,
     3. wandb mode [online, offline] (if offline, manual upload with wandb sync ... is needed after training)"
 else
     wandb_entity=$1
