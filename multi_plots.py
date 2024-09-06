@@ -17,15 +17,18 @@ class Color(Enum):
     GREEN = (0, 124 / 256, 6 / 256)
     LIGHT_GREY = (240 / 256, 240 / 256, 240 / 256)
 
-
-def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoothing_window: int = 0, step_resolution: int = 0, run_label: str | None = None):
+def prepare_dataframe(df, x: str, y: str, smoothing_window: int, step_resolution: int):
     if smoothing_window:
-        df[y] = df[y].rolling(smoothing_window, min_periods=0).mean()
+        step_size = round(df[x].max() / (len(df[x].unique()) - 1))
+        df[y] = df.rolling(smoothing_window // step_size, min_periods=0, on=x).mean()[y]
 
     if step_resolution:
         # somehow the data is saved every ...00 step or ...99
         df = df[(df[x] % step_resolution == 0) | ((df[x] + 1) % step_resolution == 0)]
+    return df
 
+
+def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, run_label: str | None = None):
     plt.figure(figsize=(8, 5))
     sns.lineplot(df, x=x, y=y, hue=hue, err_kws={"alpha": .4})
 
@@ -53,8 +56,8 @@ class Args:
     """Path to result directory in which the plots are saved"""
     run_labels: tuple[str, ...] = ()
     """Labels that are shown in the legend for each experiment. Should have the same length as file_paths."""
-    smoothing_window: int = 50
-    """Apply moving average with the passed window size. 0 for no averaging"""
+    smoothing_window: int = 10000
+    """Apply moving average with the passed window size (in steps). 0 for no averaging"""
     step_resolution: int = 10000
     """Frequency of steps that should be plotted"""
 
@@ -79,7 +82,8 @@ if __name__ == "__main__":
     for run_label, path in zip(run_labels, args.file_paths):
 
         df = pd.read_csv(path)
-        df["Experiment"] = run_label
+        df["Experiment"] = run_label.replace("_", " ")
+        df = prepare_dataframe(df, x="Step", y=df.columns[1], smoothing_window=args.smoothing_window, step_resolution=args.step_resolution)
         dfs.append(df)
     
-    plot(pd.concat(dfs), x="Step", y=df.columns[1], hue="Experiment", filepath=args.result_dir / f"multi_{args.file_paths[0].stem}.png", smoothing_window=args.smoothing_window, step_resolution=args.step_resolution)
+    plot(pd.concat(dfs), x="Step", y=df.columns[1], hue="Experiment", filepath=args.result_dir / f"multi_{args.file_paths[0].stem}.png")

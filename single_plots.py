@@ -20,7 +20,8 @@ class Color(Enum):
 
 def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoothing_window: int = 0, step_resolution: int = 0, run_label: str | None = None):
     if smoothing_window:
-        df[y] = df[y].rolling(smoothing_window, min_periods=0).mean()
+        step_size = round(df[x].max() / (len(df[x].unique()) - 1))
+        df[y] = df.rolling(smoothing_window // step_size, min_periods=0, on=x).mean()[y]
 
     if step_resolution:
         # somehow the data is saved every ...00 step or ...99
@@ -31,6 +32,7 @@ def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoo
 
     title = df.columns[1]
     if run_label:
+        run_label = run_label.replace("_", " ")
         title += f" ({run_label})"
     plt.title(title)
     plt.ylabel("Value")
@@ -52,8 +54,8 @@ class Args:
     """Path to result directory in which the plots are saved"""
     run_labels: tuple[str, ...] = ()
     """Labels that should be used in title along metric. Should have the same length as file_paths."""
-    smoothing_window: int = 50
-    """Apply moving average with the passed window size. 0 for no averaging"""
+    smoothing_window: int = 10000
+    """Apply moving average with the passed window size (in steps). 0 for no averaging"""
     step_resolution: int = 10000
     """Frequency of steps that should be plotted"""
 
