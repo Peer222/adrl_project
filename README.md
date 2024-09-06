@@ -14,7 +14,7 @@ Here you can find the code of my final project for the lecture <a href="https://
 
 <div align="center">
     <h4 align="center">Visualization of the Approach</h4>
-    <img src="complete_model.png" alt="model structure" width="50%"/>
+    <img src="complete_model.png" alt="model structure" width="65%"/>
 </div>
 
 ### Built With
@@ -66,7 +66,7 @@ pip install -r requirements.txt
 ```
 
 ### Data
-The expert dataset of the `AdroitHandDoor-v1` gymnasium from [Minari](https://minari.farama.org/datasets/D4RL/door/expert-v2/) is used.
+The expert dataset of the [AdroitHandDoor-v1](https://robotics.farama.org/envs/adroit_hand/adroit_door/) gymnasium-robotics environment from [Minari](https://minari.farama.org/datasets/D4RL/door/expert-v2/) is used.
 
 The dataset is downloaded automatically by minari when `action_model/train.py` is executed.
 If no internet connection is available during execution, the dataset can also be pre-downloaded with the following command:
