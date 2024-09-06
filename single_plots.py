@@ -21,7 +21,7 @@ class Color(Enum):
 def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoothing_window: int = 0, step_resolution: int = 0, run_label: str | None = None):
     if smoothing_window:
         step_size = round(df[x].max() / (len(df[x].unique()) - 1))
-        df[y] = df.rolling(smoothing_window // step_size, min_periods=0, on=x).mean()[y]
+        df[y] = df.rolling(max(smoothing_window // step_size, 1), min_periods=0, on=x).mean()[y]
 
     if step_resolution:
         # somehow the data is saved every ...00 step or ...99
