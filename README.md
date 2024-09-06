@@ -3,38 +3,43 @@
 <br />
 <div align="center">
     <img src="https://www.ai.uni-hannover.de/typo3temp/focuscrop/e8a88c32efe940d6f6c2dbc8d64e3c6f49314de8-fp-16-9-0-0.jpg" alt="Logo" width="250px"/>
-    <h1 align="center">DARTS with skip prevention and flexible cell stacking</h1>
+    <h1 align="center">Action2vec guided SAC</h1>
 </div>
 
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
+Here you can find the code of my final project for the lecture <a href="https://automl-edu.github.io/advanced-topics-in-deep-rl/">Advanced Topics in Deep Reinforcement Learning</a>
+
 <div align="center">
-    <h4 align="center">Visualization of the network including an example cell and an example node</h4>
+    <h4 align="center">Visualization of the approach</h4>
     <img src="poster/nas_cell.jpg" alt="cell structure" width="60%"/>
 </div>
 
-TODO
-
 ### Built With
 
-TODO
-
 <table align="center">
+<!--
 <td>
     <a href="https://pytorch.com">
     <img src="https://img.shields.io/badge/Pytorch-B026FF?style=for-the-badge&logo=pytorch&logoColor=white" alt="pytorch" width="150px">
     </a>
 </td>
+-->
 <td>
-    <a href="https://github.com/automl/NASLib">
-    <img src="https://github.com/automl/NASLib/raw/Develop/images/naslib-logo.png" alt="naslib" width="250px">
+    <a href="https://robotics.farama.org">
+    <img src="https://robotics.farama.org/_images/robotics-text.png" alt="gymnasium-robotics" width="300px">
     </a>
 </td>
 <td>
-    <a href="https://github.com/automl/SMAC3">
-    <img src="https://github.com/automl/SMAC3/raw/main/docs/images/logo.png" alt="smac" width="150px">
+    <a href="https://github.com/automl/NASLib">
+    <h1>CleanRL</h1>
+    </a>
+</td>
+<td>
+    <a href="https://minari.farama.org">
+    <img src="https://minari.farama.org/main/_images/minari-text.png" alt="minari" width="300px">
     </a>
 </td>
 </table>
@@ -45,128 +50,71 @@ TODO
 ### Installation
 Download the project:
 
-TODO
-
 ```shell
- git clone git@github.com:automl-classroom/automl-ss24-final-project-theautomatedslothmachine.git
- cd automl-ss24-final-project-theautomatedslothmachine
+ git clone git@github.com:Peer222/adrl_project.git
+ cd adrl_project
  ```
 
 #### Conda
 Create a conda environment:
 
-TODO
-
 ```bash
-conda create -n tropical_rainforest python=3.9
-conda activate tropical_rainforest
-git submodule update --init
-# The Pip upgrade is needed due to a dependency installation bug fixed in the release
-pip install --upgrade pip==24.2
+conda create -n adrl_project python=3.9
+conda activate adrl_project
 pip install -r requirements.txt
 ```
-
-If that fails you might have to run the following commands afterwards:
-
-```bash
-pip uninstall numpy
-pip uninstall numpy
-pip install numpy==1.26.4
-conda install lightgbm
-pip install -r requirements.txt
-```
-
-In one of our systems, conda installed two numpy versions for some reason and used the one which was not specified in the requirements.txt. It also wanted to use the lightgbm from conda and not from pip. We were not able to find the root causes, but this is probably a bug in conda.
-
-#### Venv
-or a python venv:
-
-```bash
-# Make sure you have python 3.9
-python -V
-python -m venv tropical_rainforest
-./tropical_rainforest/bin/activate
-git submodule update --init
-# The Pip upgrade is needed due to a dependency installation bug fixed in the release
-pip install --upgrade pip==24.2
-pip install -r requirements.txt
-```
-
 
 ### Data
-TODO
-We use the `retinamnist` dataset from [MedMNIST](https://medmnist.com/) dataset.
+The expert dataset of the `AdroitHandDoor-v1` gymnasium from [Minari](https://minari.farama.org/datasets/D4RL/door/expert-v2/) is used.
 
-The dataset will be downloaded automatically by default to the `./data` directory.
-
+The dataset is downloaded automatically by minari when `action_model/train.py` is executed.
+If no internet connection is available during execution, the dataset can also be pre-downloaded with the following command:
+```bash
+minari download door-expert-v2
+```
 
 <!-- USAGE EXAMPLES -->
 ## Usage
-TODO
-
-You can run experiments by adding your own configuration to `configs/` (e.g. `your_config.yaml`) and running the following command (see more options for bohb by running `python main.py -h`):
-
+First you should log in your wandb account by running
 ```shell
-python main.py --config_file configs/your_config.yaml
+wandb login
 ```
 
-If you want to reproduce our results run (due to compute time differences the results might differ):
+You can also run all scripts without wandb tracking by adding the option --no-track
+
+You can run experiments using the action sequence model:
 
 ```shell
-./run.sh 
+python action_model/train.py --wandb_entity `your_wandb_entity` --wandb_project_name `your_wandb_project`
+```
+You can also run the SAC extensions and baseline by e.g.:
+```shell
+python algorithms/sac_ca_extended_obs.py --action_model_dir `path/to/saved/action_models` --wandb_entity `your_wandb_entity` --wandb_project_name `your_wandb_project`
 ```
 
-To plot and visualize the results run:
+To get more information run the scripts with the `--help` flag.
+
+If you want to reproduce the results, you can execute the following bash scripts (with slurm):
 
 ```shell
-python -m plotting.bohb_progress results/acc_config/2 results/acc_config/3 results/acc_config/4 results/acc_config/5 results/acc_config/6
-python -m plotting.score --dirpaths results/acc_config/2 results/acc_config/3 results/acc_config/4 results/acc_config/5 results/acc_config/6 --logpaths log2.txt log3.txt log4.txt log5.txt log6.txt
-python -m plotting.arch_weights results/acc_config/2 results/acc_config/3 results/acc_config/4 results/acc_config/5 results/acc_config/6
+sbatch scripts/action_model_experiment.sh `your_wandb_entity` `your_wandb_project` `offline or online`
+sbatch scripts/sac_baseline_experiment.sh `your_wandb_entity` `your_wandb_project` `offline or online`
+sbatch scripts/sac_extended_obs_experiment.sh `your_wandb_entity` `your_wandb_project` `offline or online`
+sbatch scripts/sac_latent_actions_experiment.sh `your_wandb_entity` `your_wandb_project` `offline or online`
+sbatch scripts/sac_latent_actions_extended_experiment.sh `your_wandb_entity` `your_wandb_project` `offline or online`
 ```
 
+If wandb mode is set to offline, you have to manually upload the run statistics to the wandb server:
+```shell
+wandb sync `offline-run-identifier`
+```
 
-## Evaluation Setup
-TODO
+To download the data again and to store it as csv files, run:
+```shell
+./get_wandb_action_run_data.sh `your_wandb_entity` `your_wandb_project`
+./get_wandb_run_data.sh `your_wandb_entity` `your_wandb_project`
+```
 
-Due to time constraints:
-
-- our approach was run using 5 seeds for 2 hours each on an AMD Ryzen 5 5600 6-core CPU (NixOS 24.05).
-- the baseline was run using 3 seeds for 6 hours each on an i7-11800h 8-core (NixOS 24.11.20240622)
-
-We would've liked to run both for the same time on the same processor, but we found a critical bug on the last day which forced us to rerun our approach. The AMD Ryzen should be more powerful, but the shorter time still leads to a disadvantage.
-
-## Related Work
-
-TODO?
-Most approaches like Auto-Net [[9](#bibliography)] integrate architecture choices directly into the hyperparameter search space.
-This is extended by Auto-PyTorch [[6](#bibliography)] and Zela et al. [[8](#bibliography)], which use the efficient sampling of BOHB [[7](#bibliography)] for selecting both architectures and hyperparameters.
-These approaches take interactions between architecture selection and hyperparameters into account at the cost of losing the one-shot efficiency of DARTS [[1](#bibliography)].  
-[[10](#bibliography)] uses evolutionary algorithms to find a network and then use BOHB afterwards for HPO.  
-[[11](#bibliography)] does use DARTS in front of BOHB, like we want to do. They build normal and reduction cells using DARTS and build a more complex architecture by hand using the found cells. Afterwards they use BOHB to find a good learning rate and weight decay.  
-
-We try to include DARTS' efficiency of finding architectures with BOHBs HPO search to get the best out of both worlds (see above).
-
-
-## Bibliography
-
-[1]: Liu, H., Simonyan, K. and Yang, Y. (2019) ‘DARTS: Differentiable Architecture Search’, arXiv [cs.LG]. Available at: http://arxiv.org/abs/1806.09055.
-
-[2]: Chu, X. et al. (2021) ‘DARTS-: Robustly Stepping out of Performance Collapse Without Indicators’, arXiv [cs.LG]. Available at: http://arxiv.org/abs/2009.01027.
-
-[3]: Fayyazifar, N. et al. (2023) ‘ZeroLess-DARTS: Improved Differentiable Architecture Search with Refined Search Operation and Early Stopping’, in Proceedings of the 2023 15th International Conference on Machine Learning and Computing. New York, NY, USA: Association for Computing Machinery (ICMLC ’23), pp. 54–60. doi: [10.1145/3587716.3587725](https://doi.org/10.1145/3587716.3587725)
-
-[4]: He, K. et al. (2015) ‘Deep Residual Learning for Image Recognition’, arXiv [cs.CV]. Available at: http://arxiv.org/abs/1512.03385.
-
-[5]: Lin, T.-Y. et al. (2018) ‘Focal Loss for Dense Object Detection’, arXiv [cs.CV]. Available at: http://arxiv.org/abs/1708.02002.
-
-[6]: Zimmer, L., Lindauer, M. and Hutter, F. (2021) ‘Auto-PyTorch Tabular: Multi-Fidelity MetaLearning for Efficient and Robust AutoDL’, arXiv [cs.LG]. Available at: http://arxiv.org/abs/2006.13799.
-
-[7]: Falkner, S., Klein, A. and Hutter, F. (2018) ‘BOHB: Robust and Efficient Hyperparameter Optimization at Scale’, arXiv [cs.LG]. Available at: http://arxiv.org/abs/1807.01774.
-
-[8]: Zela, A. et al. (2018) ‘Towards Automated Deep Learning: Efficient Joint Neural Architecture and Hyperparameter Search’, arXiv [cs.LG]. Available at: http://arxiv.org/abs/1807.06906.
-
-[9]: Mendoza, H. et al. (2016) ‘Towards Automatically-Tuned Neural Networks’, in Hutter, F., Kotthoff, L., and Vanschoren, J. (eds) Proceedings of the Workshop on Automatic Machine Learning. New York, New York, USA: PMLR (Proceedings of Machine Learning Research), pp. 58–65. Available at: https://proceedings.mlr.press/v64/mendoza_towards_2016.html.
-
-[10]: Awad, N., Mallik, N. and Hutter, F. (8 2021) ‘DEHB: Evolutionary Hyberband for Scalable, Robust and Efficient Hyperparameter Optimization’, in Zhou, Z.-H. (ed.) Proceedings of the Thirtieth International Joint Conference on Artificial Intelligence, IJCAI-21. International Joint Conferences on Artificial Intelligence Organization, pp. 2147–2153. doi: 10.24963/ijcai.2021/296.
-
-[11]: Saikia, T. et al. (2019) ‘AutoDispNet: Improving Disparity Estimation with AutoML’, CoRR, abs/1905.07443. Available at: http://arxiv.org/abs/1905.07443.
+You can create the plots by running:
+```shell
+```
