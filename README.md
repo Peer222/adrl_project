@@ -33,9 +33,10 @@ Here you can find the code of my final project for the lecture <a href="https://
     </a>
 </td>
 <td>
-    <a href="https://github.com/automl/NASLib">
-    <h1>CleanRL</h1>
-    </a>
+    <h1>
+    <a href="https://github.com/vwxyzjn/cleanrl">
+    CleanRL</a>
+    </h1>
 </td>
 <td>
     <a href="https://minari.farama.org">
