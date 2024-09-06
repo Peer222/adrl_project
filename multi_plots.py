@@ -27,7 +27,7 @@ def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoo
         df = df[(df[x] % step_resolution == 0) | ((df[x] + 1) % step_resolution == 0)]
 
     plt.figure(figsize=(8, 5))
-    sns.lineplot(df, x=x, y=y, hue=hue)
+    sns.lineplot(df, x=x, y=y, hue=hue, err_kws={"alpha": .4})
 
     title = df.columns[1]
     if run_label:
@@ -35,6 +35,7 @@ def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoo
     plt.title(title)
     plt.ylabel("Value")
     plt.xlabel(x)
+    plt.legend()
     
     ax = plt.gca()
     ax.grid(True, color=Color.LIGHT_GREY.value)
@@ -47,11 +48,11 @@ def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, smoo
 @dataclass(frozen=True)
 class Args:
     file_paths: tuple[Path, ...]
-    """File paths to csv files from which plots should be created or directory paths that contain the csv files that should be processed"""
+    """File paths to csv files from which plots should be created"""
     result_dir: Path
     """Path to result directory in which the plots are saved"""
     run_labels: tuple[str, ...] = ()
-    """Labels that should be used in title along metric. Should have the same length as file_paths."""
+    """Labels that are shown in the legend for each experiment. Should have the same length as file_paths."""
     smoothing_window: int = 50
     """Apply moving average with the passed window size. 0 for no averaging"""
     step_resolution: int = 10000
@@ -59,13 +60,13 @@ class Args:
 
 
 if __name__ == "__main__":
-    args = tyro.cli(Args, description="Plotting script for training progress of action_model or sac runs")
+    args = tyro.cli(Args, description="Plotting script for training progress of multiple action_model or sac runs")
 
     if len(args.run_labels):
         assert len(args.file_paths) == len(args.run_labels), "Number of run labels and number of filepaths has to be the same"
         run_labels = args.run_labels
     else:
-        run_labels = [None for _ in range(len(args.file_paths))]
+        run_labels = [fp.stem for fp in args.file_paths]
 
     if args.result_dir.exists():
         pass
@@ -73,13 +74,12 @@ if __name__ == "__main__":
     else:
         args.result_dir.mkdir(parents=True)
 
-    for run_label, path in zip(run_labels, args.file_paths):
-        paths = [path]
-        if path.is_dir():
-            paths = path.glob("*.csv")
+    dfs = []
 
-        for path in paths:
-            if "wandb" in path.name:
-                continue
-            df = pd.read_csv(path)
-            plot(df, x="Step", y=df.columns[1], hue=None, filepath=(args.result_dir / path.stem).with_suffix(".png"), smoothing_window=args.smoothing_window, step_resolution=args.step_resolution, run_label=run_label)
+    for run_label, path in zip(run_labels, args.file_paths):
+
+        df = pd.read_csv(path)
+        df["Experiment"] = run_label
+        dfs.append(df)
+    
+    plot(pd.concat(dfs), x="Step", y=df.columns[1], hue="Experiment", filepath=args.result_dir / f"multi_{args.file_paths[0].stem}.png", smoothing_window=args.smoothing_window, step_resolution=args.step_resolution)
