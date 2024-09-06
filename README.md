@@ -13,8 +13,8 @@
 Here you can find the code of my final project for the lecture <a href="https://automl-edu.github.io/advanced-topics-in-deep-rl/">Advanced Topics in Deep Reinforcement Learning</a>
 
 <div align="center">
-    <h4 align="center">Visualization of the approach</h4>
-    <img src="poster/nas_cell.jpg" alt="cell structure" width="60%"/>
+    <h4 align="center">Visualization of the Approach</h4>
+    <img src="model_structure.png" alt="model structure" width="60%"/>
 </div>
 
 ### Built With
@@ -112,10 +112,13 @@ wandb sync `offline-run-identifier`
 
 To download the data again and to store it as csv files, run:
 ```shell
-./get_wandb_action_run_data.sh `your_wandb_entity` `your_wandb_project`
-./get_wandb_run_data.sh `your_wandb_entity` `your_wandb_project`
+./scripts/get_wandb_action_run_data.sh `your_wandb_entity` `your_wandb_project`
+./scripts/get_wandb_run_data.sh `your_wandb_entity` `your_wandb_project`
 ```
 
 You can create the plots by running:
 ```shell
+./scripts/plot_action_model.sh
+./scripts/plot_algorithm_multi.sh
+./scripts/plot_algorithm_single.sh
 ```
