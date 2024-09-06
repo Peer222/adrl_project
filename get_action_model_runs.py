@@ -55,12 +55,12 @@ if __name__ == "__main__":
         run_history: pd.DataFrame = run.history(samples=args.num_samples)
         run_config: Config = run.config
 
-        total_losses_train.append(parse_metric_df(run_config, run_history, metric="losses/total_train", metric_name="Total Loss (Training)"))
-        total_losses_val.append(parse_metric_df(run_config, run_history, metric="losses/total_val", metric_name="Total Loss (Validation)"))
-        reconstruction_losses_train.append(parse_metric_df(run_config, run_history, metric="losses/reconstruction_train", metric_name="Reconstruction Loss (Training)"))
-        reconstruction_losses_val.append(parse_metric_df(run_config, run_history, metric="losses/reconstruction_val", metric_name="Reconstruction Loss (Validation)"))
-        contrastive_losses_train.append(parse_metric_df(run_config, run_history, metric="losses/contrastive_train", metric_name="Contrastive Loss (Training)"))
-        contrastive_losses_val.append(parse_metric_df(run_config, run_history, metric="losses/contrastive_val", metric_name="Contrastive Loss (Validation)"))
+        total_losses_train.append(parse_metric_df(run_config, run_history, metric="losses/total_train", metric_name="Total Loss"))
+        total_losses_val.append(parse_metric_df(run_config, run_history, metric="losses/total_val", metric_name="Total Loss"))
+        reconstruction_losses_train.append(parse_metric_df(run_config, run_history, metric="losses/reconstruction_train", metric_name="Reconstruction Loss"))
+        reconstruction_losses_val.append(parse_metric_df(run_config, run_history, metric="losses/reconstruction_val", metric_name="Reconstruction Loss"))
+        contrastive_losses_train.append(parse_metric_df(run_config, run_history, metric="losses/contrastive_train", metric_name="Contrastive Loss"))
+        contrastive_losses_val.append(parse_metric_df(run_config, run_history, metric="losses/contrastive_val", metric_name="Contrastive Loss"))
 
     pd.concat(total_losses_train).to_csv(args.result_dir / "total_losses_train.csv")
     pd.concat(total_losses_val).to_csv(args.result_dir / "total_losses_val.csv")
