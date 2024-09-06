@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
-    dataset = minari.load_dataset(args.dataset_id)
+    dataset = minari.load_dataset(args.dataset_id, download=True)
     env  = dataset.recover_environment()
     train_dataset, val_dataset = minari.split_dataset(dataset, [int(args.train_split * len(dataset)), int((1 - args.train_split) * len(dataset))], seed=args.seed)
 
