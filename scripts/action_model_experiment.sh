@@ -8,20 +8,26 @@
 #SBATCH --partition=tnt,ai
 #SBATCH --time=24:00:00
 
-#SBATCH --mail-user=p.duensing@stud.uni-hannover.de
-#SBATCH --mail-type=FAIL,END
 cd $SLURM_SUBMIT_DIR
 
 module load Miniconda3
+# source "/${home}/.bashrc"
 
-source /home/nhwpduep/.bashrc
+conda activate adrl_project
 
-conda activate /bigwork/nhwpduep/.conda/envs/adrl_project
+if [ -z $1 ] || [ -z $2 ] || [ -z $3 ];
+then 
+    echo "No parameter passed. Make sure to log in to your wandb account with 'wandb login' and pass the following arguments:\n
+    1. your wandb entity,\n
+    2. your created wandb project,\n
+    3. wandb mode [online, offline] (if offline, manual upload with wandb sync ... is needed after training)"
+else
+    wandb_entity=$1
+    wandb_project=$2
+    export WANDB_MODE=$3
 
-export WANDB_MODE=offline
-
-python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 1 --latent_features 28 --lr_scheduler one_cycle_lr --exp_name door_action-model_1 --wandb_project_name adrl_results
-python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 2 --latent_features 28 --lr_scheduler one_cycle_lr --exp_name door_action-model_2 --wandb_project_name adrl_results
-python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 3 --latent_features 28 --lr_scheduler one_cycle_lr --exp_name door_action-model_3 --wandb_project_name adrl_results
-python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 4 --latent_features 28 --lr_scheduler one_cycle_lr --exp_name door_action-model_4 --wandb_project_name adrl_results
-python /bigwork/nhwpduep/adrl_project/action_model/train.py --seed 5 --latent_features 28 --lr_scheduler one_cycle_lr --exp_name door_action-model_5 --wandb_project_name adrl_results
+    for i in $(seq 1 5);
+    do
+        python action_model/train.py --seed $i --latent_features 28 --lr_scheduler one_cycle_lr --exp_name "door_action-model_${i}" --wandb_entity $wandb_entity --wandb_project_name $wandb_project
+    done
+fi

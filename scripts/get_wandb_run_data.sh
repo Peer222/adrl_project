@@ -1,8 +1,8 @@
 #!/bin/bash
 module load Miniconda3
-source /home/nhwpduep/.bashrc
+# source "/${home}/.bashrc"
 
-conda activate /bigwork/nhwpduep/.conda/envs/adrl_project
+conda activate adrl_project
 
 wandb_entity=$1
 wandb_project=$2
