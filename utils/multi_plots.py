@@ -30,7 +30,7 @@ def prepare_dataframe(df, x: str, y: str, smoothing_window: int, step_resolution
 
 def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, run_label: str | None = None):
     plt.figure(figsize=(8, 5))
-    sns.lineplot(df, x=x, y=y, hue=hue, err_kws={"alpha": .4})
+    sns.lineplot(df, x=x, y=y, hue=hue, err_kws={"alpha": .25})
 
     title = df.columns[1]
     if run_label:

@@ -7,7 +7,7 @@ for metric in "episodic_returns" "actor_losses" "qf_losses"
 do
     file_paths=""
     run_labels=""
-    for experiment in "baseline Baseline" "extended_obs Extended_Observations" "latent_actions Latent_Actions" "latent_actions_extended Latent_Actions_with_Extended_Observations"
+    for experiment in "baseline Baseline" "extended_obs Extended_Observations" "latent_actions_obs_only Latent_Actions" "latent_actions_extended Latent_Actions_with_Extended_Observations"
     do
         set -- $experiment
         file_paths="${file_paths} experiment_data/${1}/${metric}.csv"
