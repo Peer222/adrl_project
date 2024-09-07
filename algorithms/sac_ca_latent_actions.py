@@ -24,6 +24,11 @@ import action_model.model as action_model
 
 @dataclass
 class Args:
+    wandb_project_name: str
+    """the wandb's project name"""
+    wandb_entity: str
+    """the entity (team) of wandb's project"""
+
     action_model_dir: Path
     """Directory in which the trained action autoencoder is saved (encoder.pth, decoder.pth)"""
     observation_input: Literal["concat_actions", "replace_actions", "obs_only"] = "obs_only"
@@ -41,10 +46,6 @@ class Args:
     """if toggled, this experiment will be tracked with Weights and Biases"""
     track_frequency: int = 100
     """After n steps add losses... to log"""
-    wandb_project_name: str = "adrl_project"
-    """the wandb's project name"""
-    wandb_entity: str = "peer222-luh"
-    """the entity (team) of wandb's project"""
     capture_video: int = 50000
     """Frequency (global_step) of capturing videos. Set to 0 for no video capture  (check out `videos` folder)"""
 
