@@ -60,7 +60,7 @@ Download the project:
 Create a conda environment:
 
 ```bash
-conda create -n adrl_project python=3.9
+conda create -n adrl_project python=3.10
 conda activate adrl_project
 pip install -r requirements.txt
 ```
