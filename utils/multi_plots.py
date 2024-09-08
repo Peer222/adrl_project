@@ -35,8 +35,9 @@ def plot(df: pd.DataFrame, x: str, y: str, hue: str | None, filepath: Path, run_
     title = df.columns[1]
     if run_label:
         title += f" ({run_label})"
-    plt.title(title)
-    plt.ylabel("Value")
+    #plt.title(title)
+    plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    plt.ylabel(title)
     plt.xlabel(x)
     plt.legend()
     
