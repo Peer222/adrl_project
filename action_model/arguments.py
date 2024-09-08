@@ -13,15 +13,16 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = True
-    """if toggled, this experiment will be tracked with Weights and Biases"""
     track_frequency: int = 10
     """After n steps add losses... to log"""
     validation_frequency: int = 10000
     """After n steps perform validation run"""
-    wandb_project_name: str = "adrl_project"
+
+    track: bool = True
+    """if toggled, this experiment will be tracked with Weights and Biases"""
+    wandb_project_name: str = ""
     """the wandb's project name"""
-    wandb_entity: str = "peer222-luh"
+    wandb_entity: str = ""
     """the entity (team) of wandb's project"""
 
     dataset_id: str = "door-expert-v2"
