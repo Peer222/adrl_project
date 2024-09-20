@@ -3,7 +3,7 @@
 <br />
 <div align="center">
     <img src="https://www.ai.uni-hannover.de/typo3temp/focuscrop/e8a88c32efe940d6f6c2dbc8d64e3c6f49314de8-fp-16-9-0-0.jpg" alt="Logo" width="250px"/>
-    <h1 align="center">Action2vec guided SAC</h1>
+    <h1 align="center">Action2vec guided Policy Optimization</h1>
 </div>
 
 
